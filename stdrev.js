@@ -54,6 +54,7 @@ function should_be_shown(el) {
 function on_rev_changed() {
 	handle_dcl();
 	renumber_dcl();
+	handle_par();
 	handle_dsc();
 	handle_nv();
 	handle_rev();
@@ -168,6 +169,36 @@ function renumber_dcl() {
 		});
 	});
 }
+// Hide or show the elements expanded from the {{par ...}} template family. See documentation at
+// https://en.cppreference.com/w/Template:par/doc .
+// A parameter is hidden if its name only appears in hidden dcl items of the preceding dcl list.
+// Only characters matching [a-zA-Z0-9_] are considered to be part of the name. In particular,
+// ellipses and Greek characters are not considered (even though the latter are identifiers).
+// Syntactic parameters are not handled for now.
+// Requires that handle_dcl() has been called.
+function handle_par() {
+	$('.t-par-begin').each(function() {
+		var dcls = $(this).prevAll('.t-dcl-begin').last().find('.t-dcl > td:first-child');
+		$(this).find('.t-par').each(function() {
+			if (!$(this).attr('data-orig-names') && !$(this).is(':has(> td:first-child > *)')) {
+				var names = $(this).children('td:first-child').text();
+				$(this).attr('data-orig-names', names);
+			}
+			var names = $(this).attr('data-orig-names');
+			if (names) {
+				var filtered_names = $.grep(names.split(','), function(v) {
+					if (v.search(/\w/g) === -1) return true;
+					var rname = new RegExp('\\b'+v.replace(/\W/g, '')+'\\b');
+					var matched_dcls = dcls.filter(function() {
+						return $(this).text().search(rname) !== -1;
+					});
+					return !all_hidden(matched_dcls.parent());
+				});
+				this.hidden = filtered_names.length === 0;
+			}
+		});
+	});
+}
 // Hide or show the elements expanded from the {{dsc ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:dcl/doc .
 // The revision markers are in the first cell of each dsc item. In the general case, the visibility
@@ -199,8 +230,8 @@ function handle_dsc() {
 	});
 	$('.t-dsc .t-dsc-header').each(function() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
-		var lastheader = $(this).nextUntil(':not(.t-dsc-header)').addBack();
-		this.hidden = all_hidden(lastheader.nextUntil(':not(.t-dsc)')) || !should_be_shown(marker);
+		var headers = $(this).nextUntil(':not(.t-dsc-header)').addBack();
+		this.hidden = all_hidden(headers.nextUntil(':not(.t-dsc)')) || !should_be_shown(marker);
 	});
 	var heading_selector = ['tr:has(> td > h5)', 'tr:has(> td > h3)'];
 	$.each(heading_selector, function(i, selector) {
@@ -275,13 +306,14 @@ function handle_headings() {
 					this.hidden = this.hidden || !should_be_shown(marker);
 				});
 				this.hidden = !should_be_shown(marker);
-			}
-			if (section.is('.t-dsc-begin') && !section.is(':not(p, .t-rev-begin, .t-dsc-begin)')) {
-				var revisioned_content = section.find('.t-dsc, .t-rev, .t-rev-inl');
-				section.each(function() {
-					this.hidden = this.hidden || all_hidden(revisioned_content);
-				});
-				this.hidden = all_hidden(revisioned_content);
+			} else if (section.is('.t-dsc-begin')) {
+				if (!section.is(':not(p, .t-rev-begin, .t-dsc-begin)')) {
+					var content = section.find('.t-dsc, .t-rev, .t-rev-inl');
+					section.each(function() {
+						this.hidden = this.hidden || all_hidden(content);
+					});
+					this.hidden = all_hidden(content);
+				}
 			}
 		});
 	});

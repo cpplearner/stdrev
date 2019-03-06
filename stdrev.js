@@ -1,7 +1,7 @@
 (function() {
 'use strict';
 var styles = document.createElement('style');
-styles.textContent = '[hidden] { display: none !important; }';
+styles.textContent = '.stdrev-hidden { display: none !important; }';
 styles.textContent += '.stdrev-rev-hide > tbody > tr > td { border: none !important; padding: 0 !important; }'
 styles.textContent += '.stdrev-rev-hide > tbody > tr > td:nth-child(2) { display: none; }'
 styles.textContent += '.stdrev-rev-hide { border: none; }'
@@ -11,19 +11,6 @@ document.head.append(styles);
 var rev = mw.config.get('wgTitle').indexOf('c/') === 0 ?
 	[ 'C89', 'C99', 'C11' ] :
 	[ 'C++98', 'C++03', 'C++11', 'C++14', 'C++17', 'C++20' ];
-
-var select = $('<div class="vectorMenu"></div>').appendTo('#cpp-head-tools-right');
-select.append('<h5><span>Std rev</span></h5>');
-var list = $('<ul>').appendTo($('<div class="menu">').appendTo(select));
-$.each(['DIFF'].concat(rev), function(i, v) {
-	list.append('<li><a href="#'+v+'">'+v+'</a></li>');
-});
-list.on('click', 'a', function(e) {
-	list.find('a').css('font-weight', 'normal');
-	$(this).css('font-weight', 'bold');
-	curr_rev = e.target.innerText;
-	on_rev_changed();
-});
 
 var curr_rev = 'DIFF';
 
@@ -49,6 +36,14 @@ function should_be_shown(el) {
 	return since <= curr_revid && curr_revid < until;
 }
 
+// Hide `el` if `cond` is true. `el` should be a HTML element.
+function hide_if(el, cond) { $(el).toggleClass('stdrev-hidden', cond); }
+
+// Returns true if the jQuery object `el` contains at least one element, and all contained elements
+// are hidden; otherwise returns false.
+// This is used to hide a 'parent' or 'heading' element when all its contents are hidden.
+function all_hidden(el) { return $(el).length > 0 && !$(el).is(':not(.stdrev-hidden)'); }
+
 // Called when user changes the selected revision. Inside this function, curr_rev is already set to
 // the value after the change.
 function on_rev_changed() {
@@ -62,16 +57,9 @@ function on_rev_changed() {
 	handle_list_items();
 	$('.t-rev-begin, .t-rev-inl').toggleClass('stdrev-rev-hide', curr_rev !== 'DIFF');
 	$('.t-mark-rev').each(function() {
-		this.hidden = curr_rev !== 'DIFF';
-		if ($(this.nextSibling).is('br'))
-			this.nextSibling.hidden = curr_rev !== 'DIFF';
+		hide_if(this, curr_rev !== 'DIFF');
 	});
 }
-
-// Returns true if the jQuery object `el` contains at least one element, and all contained elements
-// are hidden; otherwise returns false.
-// This is used to hide a 'parent' or 'heading' element when all its contents are hidden.
-function all_hidden(el) { return $(el).length > 0 && !$(el).is(':not([hidden])'); }
 
 // Hide or show the elements expanded from the {{dcl ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:dcl/doc .
@@ -83,27 +71,27 @@ function all_hidden(el) { return $(el).length > 0 && !$(el).is(':not([hidden])')
 // are hidden, and vice versa.
 function handle_dcl() {
 	$('.t-dcl').each(function() {
-		this.hidden = !should_be_shown(this);
+		hide_if(this, !should_be_shown(this));
 	});
 	$('.t-dcl-rev').each(function() {
 		if ($(this).is('.t-dcl-rev-notes')) {
 			var hidden = !should_be_shown(this);
-			this.hidden = hidden;
+			hide_if(this, hidden);
 			$(this).find('.t-dcl').each(function() {
-				this.hidden = hidden;
+				hide_if(this, hidden);
 			});
 		} else {
-			this.hidden = all_hidden($(this).find('.t-dcl'));
+			hide_if(this, all_hidden($(this).find('.t-dcl')));
 		}
 	});
 	$('.t-dcl-begin .t-dsc-header').each(function() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
 		var lastheader = $(this).nextUntil(':not(.t-dsc-header)').addBack();
 		var elts = lastheader.nextUntil('.t-dsc-header').filter('.t-dcl, .t-dcl-rev');
-		this.hidden = all_hidden(elts) || !should_be_shown(marker);
+		hide_if(this, all_hidden(elts) || !should_be_shown(marker));
 	});
 	$('.t-dcl-h').each(function() {
-		this.hidden = all_hidden($(this).nextUntil(':not(.t-dcl, .t-dcl-rev)'));
+		hide_if(this, all_hidden($(this).nextUntil(':not(.t-dcl, .t-dcl-rev)')));
 	});
 }
 
@@ -131,7 +119,7 @@ function renumber_dcl() {
 			var original_num = num_cell.attr('data-orig-num');
 			if (original_num) {
 				if (! numbering_map[original_num])
-					numbering_map[original_num] = $(this).is('[hidden]') ? null : ++i;
+					numbering_map[original_num] = all_hidden(this) ? null : ++i;
 				num_cell.text('('+numbering_map[original_num]+')');
 			}
 		});
@@ -162,7 +150,7 @@ function renumber_dcl() {
 				}
 			}
 			if ($(this).is('.t-li')) {
-				this.parentElement.hidden = numbers.length === 0;
+				hide_if(this.parentElement, numbers.length === 0);
 				$(this).text(s.join(',')+')');
 			} else
 				$(this).text('('+s.join(',')+')');
@@ -174,7 +162,7 @@ function renumber_dcl() {
 // A parameter is hidden if its name only appears in hidden dcl items of the preceding dcl list.
 // Only characters matching [a-zA-Z0-9_] are considered to be part of the name. In particular,
 // ellipses and Greek characters are not considered (even though the latter are identifiers).
-// Syntactic parameters are not handled for now.
+// Syntactic parameters (expanded from {{spar ...}}) are not handled for now.
 // Requires that handle_dcl() has been called.
 function handle_par() {
 	$('.t-par-begin').each(function() {
@@ -194,7 +182,7 @@ function handle_par() {
 					});
 					return !all_hidden(matched_dcls.parent());
 				});
-				this.hidden = filtered_names.length === 0;
+				hide_if(this, filtered_names.length === 0);
 			}
 		});
 	});
@@ -214,34 +202,34 @@ function handle_dsc() {
 			var lines = member.find('> div:nth-child(2) > .t-lines').children();
 			var mems = member.find('> div:first-child .t-lines').children();
 			if (lines.length !== mems.length)
-				this.hidden = !should_be_shown(lines.children('.t-mark-rev'));
+				hide_if(this, !should_be_shown(lines.children('.t-mark-rev')));
 			else {
 				lines.each(function(i) {
 					var marker = $(this).children('.t-mark-rev');
-					mems[i].hidden = !should_be_shown(marker);
-					marker.hidden = !should_be_shown(marker);
+					hide_if(mems[i], !should_be_shown(marker));
+					hide_if(marker, !should_be_shown(marker));
 				});
-				this.hidden = all_hidden(mems);
+				hide_if(this, all_hidden(mems));
 			}
 		} else {
 			var marker = $(this).find('> td:first-child > .t-mark-rev');
-			this.hidden = !should_be_shown(marker);
+			hide_if(this, !should_be_shown(marker));
 		}
 	});
-	$('.t-dsc .t-dsc-header').each(function() {
+	$('.t-dsc-begin .t-dsc-header').each(function() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
 		var headers = $(this).nextUntil(':not(.t-dsc-header)').addBack();
-		this.hidden = all_hidden(headers.nextUntil(':not(.t-dsc)')) || !should_be_shown(marker);
+		hide_if(this, all_hidden(headers.nextUntil(':not(.t-dsc)')) || !should_be_shown(marker));
 	});
 	var heading_selector = ['tr:has(> td > h5)', 'tr:has(> td > h3)'];
 	$.each(heading_selector, function(i, selector) {
 		$(selector).each(function() {
 			var section = $(this).nextUntil(heading_selector.slice(i).join(','));
-			this.hidden = all_hidden(section.filter('.t-dsc'));
+			hide_if(this, all_hidden(section.filter('.t-dsc')));
 		});
 	});
 	$('.t-dsc-begin').each(function() {
-		this.hidden = all_hidden($(this).find('.t-dsc'));
+		hide_if(this, all_hidden($(this).find('.t-dsc')));
 	});
 }
 // Hide or show the navbar elements expanded from the {{nv ...}} template family. See documentation
@@ -254,17 +242,17 @@ function handle_dsc() {
 function handle_nv() {
 	$('.t-nv').each(function() {
 		var marker = $(this).find('> td > .t-mark-rev');
-		this.hidden = !should_be_shown(marker);
+		hide_if(this, !should_be_shown(marker));
 	});
 	$('.t-nv-ln-table').each(function() {
 		var lines = $(this).find('> div:nth-child(2) > .t-lines').children();
 		var mems = $(this).find('> div:first-child .t-lines').children();
 		lines.each(function(i) {
 			var marker = $(this).children('.t-mark-rev');
-			if (mems[i]) mems[i].hidden = !should_be_shown(marker);
-			marker.hidden = !should_be_shown(marker);
+			if (mems[i]) hide_if(mems[i], !should_be_shown(marker));
+			hide_if(marker, !should_be_shown(marker));
 		});
-		this.hidden = all_hidden(mems);
+		hide_if(this, all_hidden(mems));
 	});
 	var heading_selector = ['.t-nv-h2', '.t-nv-h1'];
 	$.each(heading_selector, function(i, selector) {
@@ -273,11 +261,12 @@ function handle_nv() {
 			var marker = $(this).find('> td > .t-mark-rev');
 			if (marker[0]) {
 				section.each(function() {
-					this.hidden = this.hidden || !should_be_shown(marker);
+					hide_if(this, all_hidden(this) || !should_be_shown(marker));
 				});
-				this.hidden = !should_be_shown(marker);
+				hide_if(this, !should_be_shown(marker));
+			} else {
+				hide_if(this, all_hidden(section.find('.t-nv-ln-table')));
 			}
-			this.hidden = all_hidden(section.find('.t-nv-ln-table'));
 		});
 	});
 }
@@ -286,7 +275,7 @@ function handle_nv() {
 // Borders are handled by class stdrev-rev-hide.
 function handle_rev() {
 	$('.t-rev, .t-rev-inl').each(function() {
-		this.hidden = !should_be_shown(this);
+		hide_if(this, !should_be_shown(this));
 	});
 }
 // Hide or show headings.
@@ -303,16 +292,17 @@ function handle_headings() {
 			var marker = $(this).find('> span > .t-mark-rev');
 			if (marker[0]) {
 				section.each(function() {
-					this.hidden = this.hidden || !should_be_shown(marker);
+					hide_if(this, all_hidden(this) || !should_be_shown(marker));
 				});
-				this.hidden = !should_be_shown(marker);
+				hide_if(this, !should_be_shown(marker));
 			} else if (section.is('.t-dsc-begin')) {
 				if (!section.is(':not(p, .t-rev-begin, .t-dsc-begin)')) {
 					var content = section.find('.t-dsc, .t-rev, .t-rev-inl');
+					var hidden = all_hidden(content);
 					section.each(function() {
-						this.hidden = this.hidden || all_hidden(content);
+						hide_if(this, all_hidden(this) || hidden);
 					});
-					this.hidden = all_hidden(content);
+					hide_if(this, hidden);
 				}
 			}
 		});
@@ -322,7 +312,38 @@ function handle_headings() {
 function handle_list_items() {
 	$('li').each(function() {
 		var marker = $(this).children('.t-mark-rev');
-		this.hidden = !should_be_shown(marker);
+		hide_if(this, !should_be_shown(marker));
 	});
 }
+
+var select = $('<div class="vectorMenu"></div>').appendTo('#cpp-head-tools-right');
+select.append('<h5><span>Std rev</span></h5>');
+var list = $('<ul>').appendTo($('<div class="menu">').appendTo(select));
+$.each(['DIFF'].concat(rev), function(i, v) {
+	list.append('<li><a href="#'+v+'">'+v+'</a></li>');
+});
+list.find('a').on('click', function(e) {
+	list.find('a').css('font-weight', 'normal');
+	$(this).css('font-weight', 'bold');
+	curr_rev = e.target.innerText;
+	on_rev_changed();
+	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0)
+		localStorage['stdrev'] = curr_rev;
+});
+
+$.each(rev, function(i, v) {
+	curr_rev = v;
+	var marker = $('#firstHeading > .t-mark-rev');
+	if (! marker[0])
+		marker = $('.t-dsc-begin:not(h3 ~ *) .t-mark-rev');
+	if (! should_be_shown(marker))
+		list.find('a[href="#'+rev+'"]').css('color', 'grey');
+});
+
+if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
+	curr_rev = localStorage['stdrev'];
+	if (list.find('a[href="#'+curr_rev+'"]').css('color') !== 'grey')
+		list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
+}
+
 })();

@@ -73,8 +73,10 @@ function on_rev_changed() {
 // declaration list (expanded from {{dcl rev begin | ... }}). In the latter case, the revision may
 // be supplied by the dcl items or by the dcl-rev (in the latter case the dcl-rev has class
 // t-dcl-rev-notes).
-// For the use of renumber_dcl(), each dcl-rev is marked as hidden if all its children dcl items
-// are hidden, and vice versa.
+// When {{dcl rev begin | ... }} is in use, the elements produced by {{dcl header | ... }} and
+// {{dcl h | ... }} might not be next to their associated dcl items in DOM.
+// For convenience, each dcl-rev is marked as hidden if all its children dcl items are hidden,
+// and vice versa.
 function handle_dcl() {
 	$('.t-dcl').each(function() {
 		hide_if(this, !should_be_shown(this));
@@ -90,14 +92,23 @@ function handle_dcl() {
 			hide_if(this, all_hidden($(this).find('.t-dcl')));
 		}
 	});
+	var heading_selector = ['.t-dcl-h', '.t-dcl-begin .t-dsc-header'];
+	$.each(heading_selector, function(i, selector) {
+		$(selector).each(function() {
+			var headings = heading_selector.slice(i).join(',');
+			var lastheading = $(this).nextUntil(':not('+headings+')').addBack().last();
+			var elts = lastheading.nextUntil(headings).filter('.t-dcl');
+			if (! is_present(lastheading.nextAll(headings))) {
+				var dcl_revs = $(this).closest('tbody').nextUntil(':has('+headings+')');
+				var dcls = dcl_revs.next().find(headings).first().prevAll('.t-dcl');
+				elts = elts.add(dcl_revs.find('.t-dcl')).add(dcls);
+			}
+			hide_if(this, all_hidden(elts));
+		});
+	});
 	$('.t-dcl-begin .t-dsc-header').each(function() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
-		var lastheader = $(this).nextUntil(':not(.t-dsc-header)').addBack();
-		var elts = lastheader.nextUntil('.t-dsc-header').filter('.t-dcl, .t-dcl-rev');
-		hide_if(this, all_hidden(elts) || !should_be_shown(marker));
-	});
-	$('.t-dcl-h').each(function() {
-		hide_if(this, all_hidden($(this).nextUntil(':not(.t-dcl, .t-dcl-rev)')));
+		hide_if(this, all_hidden(this) || !should_be_shown(marker));
 	});
 }
 // Hide revision markers in each dcl. Currently, a marker is hidden only if the associated

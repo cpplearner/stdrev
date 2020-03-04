@@ -368,6 +368,7 @@ list.find('a').on('click', function(e) {
 	on_rev_changed();
 	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0)
 		localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'] = curr_rev;
+	return false;
 });
 
 $.each(rev, function(i, v) {

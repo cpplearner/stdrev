@@ -52,6 +52,7 @@ function all_hidden(el) { return is_present(el) && !$(el).is(':not(.stdrev-hidde
 // the value after the change.
 function on_rev_changed() {
 	handle_dcl();
+	hide_rev_mark_in_dcl();
 	renumber_dcl();
 	handle_par();
 	handle_dsc();
@@ -99,7 +100,18 @@ function handle_dcl() {
 		hide_if(this, all_hidden($(this).nextUntil(':not(.t-dcl, .t-dcl-rev)')));
 	});
 }
-
+// Hide revision markers in each dcl. Currently, a marker is hidden only if the associated
+// declaration replaces or is replaced with another declaration, not if the declaration is removed
+// without any replacement. This is because the markers seem more misleading than helpful in the
+// former case, and vice versa in the latter case.
+// Requires that handle_dcl() has been called.
+function hide_rev_mark_in_dcl() {
+	$('.t-dcl-rev > .t-dcl').each(function() {
+		var marker = $(this).find('> td > .t-mark-rev');
+		hide_if(marker.filter('[class*=" t-since-"]'), all_hidden($(this).prev()));
+		hide_if(marker.filter('[class*=" t-until-"]'), all_hidden($(this).next()));
+	});
+}
 // Ensure that each visible dcl item in a dcl list is contiguously numbered, and rewrite mentions
 // to these numbers to use the modified numbering.
 // If a list item (e.g. those expanded from @m@) contains no number after the rewrite (i.e. it's

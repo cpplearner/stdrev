@@ -22,11 +22,11 @@ var choices = ['DIFF'].concat(rev);
 // DIFF (i.e. show all), or curr_rev is within the range [since, until). The range [since, until)
 // is inspected from the classes of `el`.
 // `el` may be the same element as the one to be shown if it has the needed classes, or it may be a
-// revision marker or a collection thereof (e.g. one expanded from {{mark since foo}}, or from the
+// revision marker or a collection thereof (e.g. one produced by {{mark since foo}}, or from the
 // {{mark since foo}}{{mark until bar}} combo).
 // `el` may be either a HTML element or a jQuery object.
-// Note that this correctly handle the case when `el` represents an empty set of elements (in which
-// case the element is always shown).
+// Note that this correctly handle the case when `el` contains nothing (in which case the element
+// is always shown).
 function should_be_shown(el) {
 	if (curr_rev === 'DIFF') return true;
 	var curr_revid = rev.indexOf(curr_rev);
@@ -40,7 +40,7 @@ function should_be_shown(el) {
 	return since <= curr_revid && curr_revid < until;
 }
 
-// Hide `el` if `cond` is true. `el` should be a HTML element.
+// Hide `el` if `cond` is true. `el` may be a HTML element or a jQuery object.
 function hide_if(el, cond) { $(el).toggleClass('stdrev-hidden', cond); }
 
 // Returns true if the jQuery object `el` contains at least one element.
@@ -67,14 +67,14 @@ function on_rev_changed() {
 	$('body').attr('data-stdrev', curr_rev);
 }
 
-// Hide or show the elements expanded from the {{dcl ...}} template family. See documentation at
+// Hide or show the elements produced by the {{dcl ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:dcl/doc .
-// The dcl items (expanded from {{dcl | ... }}) may either appear alone or as children of versioned
-// declaration list (expanded from {{dcl rev begin | ... }}). In the latter case, the revision may
+// The dcl items (produced by {{dcl | ... }}) may either appear alone or as children of versioned
+// declaration list (produced by {{dcl rev begin | ... }}). In the latter case, the revision may
 // be supplied by the dcl items or by the dcl-rev (in the latter case the dcl-rev has class
 // t-dcl-rev-notes).
 // When {{dcl rev begin | ... }} is in use, the elements produced by {{dcl header | ... }} and
-// {{dcl h | ... }} might not be next to their associated dcl items in DOM.
+// {{dcl h | ... }} might not be adjacent to their associated dcl items in DOM.
 // For convenience, each dcl-rev is marked as hidden if all its children dcl items are hidden,
 // and vice versa.
 function handle_dcl() {
@@ -112,9 +112,11 @@ function handle_dcl() {
 	});
 }
 // Hide revision markers in each dcl. Currently, a marker is hidden only if the associated
-// declaration replaces or is replaced with another declaration, not if the declaration is removed
-// without any replacement. This is because the markers seem more misleading than helpful in the
-// former case, and vice versa in the latter case.
+// declaration replaces or is replaced with another declaration, because the markers seem
+// misleading in this case: the declaration is only updated, not added or removed. If no
+// replacement is declared, the markers are not hidden.
+// This treatment might seem subtle, but hopefully it is more helpful than always showing
+// the markers.
 // Requires that handle_dcl() has been called.
 function hide_rev_mark_in_dcl() {
 	$('.t-dcl-rev > .t-dcl').each(function() {
@@ -123,10 +125,10 @@ function hide_rev_mark_in_dcl() {
 		hide_if(marker.filter('[class*=" t-until-"]'), all_hidden($(this).next()));
 	});
 }
-// Ensure that each visible dcl item in a dcl list is contiguously numbered, and rewrite mentions
-// to these numbers to use the modified numbering.
-// If a list item (e.g. those expanded from @m@) contains no number after the rewrite (i.e. it's
-// inapplicable in current revision), it is hidden.
+// Ensure that visible dcl items in a dcl list are contiguously numbered, and rewrite mentions
+// of these numbers to use the modified numbering.
+// A list item (e.g. those produced by @m@) is hidden if it contains no number after the rewrite
+// (i.e. it's inapplicable in current revision).
 // Note that the use of '~ * .t-li, ~ * .t-v' effectively establishes a kind of scoping: only
 // numbers that appear after the dcl list and are more nested in the DOM hierarchy are affected
 // by the renumbering.
@@ -190,12 +192,12 @@ function renumber_dcl() {
 		});
 	});
 }
-// Hide or show the elements expanded from the {{par ...}} template family. See documentation at
+// Hide or show the elements produced by the {{par ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:par/doc .
 // A parameter is hidden if its name only appears in hidden dcl items of the preceding dcl list.
 // Only characters matching [a-zA-Z0-9_] are considered to be part of the name. In particular,
 // ellipses and Greek characters are not considered (even though the latter are identifiers).
-// Syntactic parameters (expanded from {{spar ...}}) are not handled for now.
+// Syntactic parameters (produced by {{spar ...}}) are not handled for now.
 // Requires that handle_dcl() has been called.
 function handle_par() {
 	$('.t-par-begin').each(function() {
@@ -218,11 +220,11 @@ function handle_par() {
 		});
 	});
 }
-// Hide or show the elements expanded from the {{dsc ...}} template family. See documentation at
-// https://en.cppreference.com/w/Template:dcl/doc .
+// Hide or show the elements produced by the {{dsc ...}} template family. See documentation at
+// https://en.cppreference.com/w/Template:dsc/doc .
 // The revision markers are in the first cell of each dsc item. In the general case, the visibility
 // of a dsc item is control by a single revision marker. But if a specialized template is used,
-// and the amount of entity names in the first cell matches the lines of the revision markers,
+// and there are as many entity names in the first cell as the lines of the revision markers,
 // then each line controls the visibility of a single entity name, and the dsc item is hidden only
 // if all the entity names are hidden.
 // If all the dsc items are hidden, then the corresponding headings are hidden as well.
@@ -263,9 +265,9 @@ function handle_dsc() {
 		hide_if(this, all_hidden($(this).find('.t-dsc')));
 	});
 }
-// Hide or show the navbar elements expanded from the {{nv ...}} template family. See documentation
+// Hide or show the navbar elements produced by the {{nv ...}} template family. See documentation
 // at https://en.cppreference.com/w/Template:nv/doc .
-// A line of revision marker only controls a single entity name, even if it's expanded from
+// A revision marker controls only a single name, even if the nv element is produced by
 // {{nv ln | ... }} that contains multiple lines.
 // If a heading contains a revision marker, that revision marker controls the visibility of the
 // heading and its corresponding contents; otherwise the heading is hidden when it is followed by
@@ -301,8 +303,8 @@ function handle_nv() {
 		});
 	});
 }
-// Hide or show the elements expanded from the {{rev ...}} template family. See documentation at
-// https://en.cppreference.com/w/Template:dcl/doc .
+// Hide or show the elements produced by the {{rev ...}} template family. See documentation at
+// https://en.cppreference.com/w/Template:rev/doc .
 // Borders are handled by class stdrev-rev-hide.
 function handle_rev() {
 	$('.t-rev, .t-rev-inl').each(function() {

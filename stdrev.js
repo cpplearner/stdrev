@@ -1,11 +1,12 @@
 (function() {
 'use strict';
 var styles = document.createElement('style');
-styles.textContent = '.stdrev-hidden { display: none !important; }';
-styles.textContent += '.stdrev-rev-hide > tbody > tr > td { border: none !important; padding: 0 !important; }'
-styles.textContent += '.stdrev-rev-hide > tbody > tr > td:nth-child(2) { display: none; }'
-styles.textContent += '.stdrev-rev-hide { border: none; }'
-styles.textContent += '.stdrev-rev-hide > span > .t-mark-rev { display: none; }'
+var not_diff_mode = '[data-stdrev]:not([data-stdrev="DIFF"]) ';
+styles.textContent = not_diff_mode+'.stdrev-hidden { display: none !important; }';
+styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: none !important; padding: 0 !important; }'
+styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }'
+styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }'
+styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }'
 $('head').append(styles);
 
 var is_cxx = mw.config.get('wgTitle').indexOf('c/') !== 0;
@@ -14,6 +15,8 @@ var rev = is_cxx ?
 	[ 'C89', 'C99', 'C11' ];
 
 var curr_rev = 'DIFF';
+
+var choices = ['DIFF'].concat(rev);
 
 // Returns true if an element should be shown in the current revision, that is, either curr_rev is
 // DIFF (i.e. show all), or curr_rev is within the range [since, until). The range [since, until)
@@ -61,10 +64,7 @@ function on_rev_changed() {
 	handle_member();
 	handle_headings();
 	handle_list_items();
-	$('.t-rev-begin, .t-rev-inl').toggleClass('stdrev-rev-hide', curr_rev !== 'DIFF');
-	$('.t-mark-rev').each(function() {
-		hide_if(this, curr_rev !== 'DIFF');
-	});
+	$('body').attr('data-stdrev', curr_rev);
 }
 
 // Hide or show the elements expanded from the {{dcl ...}} template family. See documentation at
@@ -358,7 +358,7 @@ function handle_list_items() {
 var select = $('<div class="vectorMenu"></div>').appendTo('#cpp-head-tools-right');
 select.append('<h5><span>Std rev</span></h5>');
 var list = $('<ul>').appendTo($('<div class="menu">').appendTo(select));
-$.each(['DIFF'].concat(rev), function(i, v) {
+$.each(choices, function(i, v) {
 	list.append('<li><a href="#'+v+'">'+v+'</a></li>');
 });
 list.find('a').on('click', function(e) {

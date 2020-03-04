@@ -170,21 +170,19 @@ function renumber_dcl() {
 // Requires that handle_dcl() has been called.
 function handle_par() {
 	$('.t-par-begin').each(function() {
-		var dcls = $(this).prevAll('.t-dcl-begin').last().find('.t-dcl > td:first-child');
+		var dcls = $(this).prevAll('.t-dcl-begin').last().find('.t-dcl');
 		$(this).find('.t-par').each(function() {
-			if (!$(this).attr('data-orig-names') && !$(this).is(':has(> td:first-child > *)')) {
-				var names = $(this).children('td:first-child').text();
-				$(this).attr('data-orig-names', names);
-			}
-			var names = $(this).attr('data-orig-names');
+			if ($(this).is(':has(> td:first-child > *)'))
+				return;
+			var names = $(this).children('td:first-child').text();
 			if (names) {
 				var filtered_names = $.grep(names.split(','), function(v) {
 					if (v.search(/\w/g) === -1) return true;
 					var rname = new RegExp('\\b'+v.replace(/\W/g, '')+'\\b');
-					var matched_dcls = dcls.filter(function() {
+					var matched_dcls = dcls.find('> td:first-child').filter(function() {
 						return $(this).text().search(rname) !== -1;
 					});
-					return !all_hidden(matched_dcls.parent());
+					return !all_hidden(matched_dcls);
 				});
 				hide_if(this, !is_present(filtered_names));
 			}

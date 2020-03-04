@@ -134,6 +134,7 @@ function renumber_dcl() {
 			var original_numbers = [];
 			$.each($(this).attr('data-orig-v').split(','), function(i, v) {
 				var match = /(\d+)(?:-(\d+))?/.exec(v);
+				if (! match) return;
 				if (match[2])
 					for (var i = +match[1]; +i <= +match[2]; ++i)
 						original_numbers.push(i);
@@ -154,11 +155,15 @@ function renumber_dcl() {
 					s.push(numbers[i]);
 				}
 			}
-			if ($(this).is('.t-li')) {
+			if ($(this).is('.t-v')) {
+				$(this).text('('+s.join(',')+')');
+			} else if ($(this).attr('data-orig-v') !== '') {
 				hide_if(this.parentElement, !is_present(numbers));
 				$(this).text(s.join(',')+')');
-			} else
-				$(this).text('('+s.join(',')+')');
+			} else {
+				var prev_li = $(this).prevAll('.t-li:not([data-orig-v=""])').last();
+				hide_if(this.parentElement, all_hidden(prev_li));
+			}
 		});
 	});
 }

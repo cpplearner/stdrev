@@ -57,6 +57,7 @@ function on_rev_changed() {
 	handle_dsc();
 	handle_nv();
 	handle_rev();
+	handle_member();
 	handle_headings();
 	handle_list_items();
 	$('.t-rev-begin, .t-rev-inl').toggleClass('stdrev-rev-hide', curr_rev !== 'DIFF');
@@ -278,6 +279,14 @@ function handle_nv() {
 function handle_rev() {
 	$('.t-rev, .t-rev-inl').each(function() {
 		hide_if(this, !should_be_shown(this));
+	});
+}
+// Hide or show in-line member description block produced by {{member}}.
+// A block is hidden if all its declarations are hidden.
+// Requires that handle_dcl has been called.
+function handle_member() {
+	$('.t-member').each(function() {
+		hide_if(this, all_hidden($(this).find('.t-dcl')));
 	});
 }
 // Hide or show headings.

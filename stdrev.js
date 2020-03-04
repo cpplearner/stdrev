@@ -8,9 +8,10 @@ styles.textContent += '.stdrev-rev-hide { border: none; }'
 styles.textContent += '.stdrev-rev-hide > span > .t-mark-rev { display: none; }'
 document.head.append(styles);
 
-var rev = mw.config.get('wgTitle').indexOf('c/') === 0 ?
-	[ 'C89', 'C99', 'C11' ] :
-	[ 'C++98', 'C++03', 'C++11', 'C++14', 'C++17', 'C++20' ];
+var is_cxx = mw.config.get('wgTitle').indexOf('c/') !== 0;
+var rev = is_cxx ?
+	[ 'C++98', 'C++03', 'C++11', 'C++14', 'C++17', 'C++20' ] :
+	[ 'C89', 'C99', 'C11' ];
 
 var curr_rev = 'DIFF';
 
@@ -328,7 +329,7 @@ list.find('a').on('click', function(e) {
 	curr_rev = e.target.innerText;
 	on_rev_changed();
 	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0)
-		localStorage['stdrev'] = curr_rev;
+		localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'] = curr_rev;
 });
 
 $.each(rev, function(i, v) {
@@ -341,7 +342,7 @@ $.each(rev, function(i, v) {
 });
 
 if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
-	curr_rev = localStorage['stdrev'];
+	curr_rev = localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'];
 	if (list.find('a[href="#'+curr_rev+'"]').css('color') !== 'grey')
 		list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
 }

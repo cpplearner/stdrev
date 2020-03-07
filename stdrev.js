@@ -3,10 +3,12 @@
 var styles = document.createElement('style');
 var not_diff_mode = '[data-stdrev]:not([data-stdrev="DIFF"]) ';
 styles.textContent = not_diff_mode+'.stdrev-hidden { display: none !important; }';
-styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: none !important; padding: 0 !important; }'
-styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }'
-styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }'
-styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }'
+styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: none !important; padding: 0 !important; }';
+styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
+styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
+styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }';
+styles.textContent += 'div.vectorMenu li a.stdrev-inapplicable-rev-option { color: grey; font-style: italic; }';
+styles.textContent += 'div.vectorMenu li a.stdrev-selected-rev-option { font-weight: bold; }';
 $('head').append(styles);
 
 var is_cxx = mw.config.get('wgTitle').indexOf('c/') !== 0;
@@ -113,8 +115,9 @@ function handle_dcl() {
 }
 // Hide revision markers in each dcl. Currently, a marker is hidden only if the associated
 // declaration replaces or is replaced with another declaration, because the markers seem
-// misleading in this case: the declaration is only updated, not added or removed. If no
-// replacement is declared, the markers are not hidden.
+// misleading in this case: the declaration is only updated, not added or removed.
+// Markers are never hidden otherwise. In particular, if no replacement is declared, the markers
+// are not hidden.
 // This treatment might seem subtle, but hopefully it is more helpful than always showing
 // the markers.
 // Requires that handle_dcl() has been called.
@@ -357,42 +360,49 @@ function handle_list_items() {
 	});
 }
 
-var select = $('<div class="vectorMenu"></div>').appendTo('#cpp-head-tools-right');
-select.append('<h5><span>Std rev</span></h5>');
-var list = $('<ul>').appendTo($('<div class="menu">').appendTo(select));
-$.each(choices, function(i, v) {
-	list.append('<li><a href="#'+v+'">'+v+'</a></li>');
-});
-list.find('a').on('click', function(e) {
-	list.find('a').css('font-weight', 'normal');
-	$(this).css('font-weight', 'bold');
-	curr_rev = e.target.innerText;
-	on_rev_changed();
-	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0)
-		localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'] = curr_rev;
-	return false;
-});
+function init() {
+	// create revision select
+	var select = $('<div class="vectorMenu"></div>').appendTo('#cpp-head-tools-right');
+	select.append('<h5><span>Std rev</span></h5>');
+	var list = $('<ul>').appendTo($('<div class="menu">').appendTo(select));
+	$.each(choices, function(i, v) {
+		list.append('<li><a href="#'+v+'">'+v+'</a></li>');
+	});
+	list.find('a').on('click', function(e) {
+		list.find('a').removeClass('stdrev-selected-rev-option');
+		$(this).addClass('stdrev-selected-rev-option');
+		curr_rev = e.target.innerText;
+		on_rev_changed();
+		if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0)
+			localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'] = curr_rev;
+		return false;
+	});
 
-$.each(rev, function(i, v) {
-	var rev_is_applicable = true;
-	curr_rev = v;
-	var marker = $('#firstHeading > .t-mark-rev');
-	if (is_present(marker)) {
-		rev_is_applicable = should_be_shown(marker);
-	} else {
-		var dcl_cont = $('.t-dcl-begin:not(h3 ~ *, .t-member *)');
-		var dcl = dcl_cont.find('.t-dcl-rev-notes, .t-dcl:not(.t-dcl-rev-notes *)');
-		if (is_present(dcl) && !dcl.is(':not(:has(.t-mark-rev))'))
-			rev_is_applicable = dcl.is(function() { return should_be_shown(this) });
+	// grey out options that appear inapplicable, based on the heading and the dcl lists (if any).
+	$.each(rev, function(i, v) {
+		var rev_is_applicable = true;
+		curr_rev = v;
+		var marker = $('#firstHeading > .t-mark-rev');
+		if (is_present(marker)) {
+			rev_is_applicable = should_be_shown(marker);
+		} else {
+			var dcl_cont = $('.t-dcl-begin:not(h3 ~ *, .t-member *)');
+			var dcl = dcl_cont.find('.t-dcl-rev-notes, .t-dcl:not(.t-dcl-rev-notes *)');
+			if (is_present(dcl) && !dcl.is(':not(:has(.t-mark-rev))'))
+				rev_is_applicable = dcl.is(function() { return should_be_shown(this) });
+		}
+		if (! rev_is_applicable)
+			list.find('a[href="#'+curr_rev+'"]').addClass('stdrev-inapplicable-rev-option');
+	});
+
+	// select the previously selected revision
+	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
+		curr_rev = localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'];
+		if (! list.find('a[href="#'+curr_rev+'"]').is('.stdrev-inapplicable-rev-option'))
+			list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
 	}
-	if (! rev_is_applicable)
-		list.find('a[href="#'+curr_rev+'"]').css({'color': 'grey', 'font-style': 'italic'});
-});
-
-if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
-	curr_rev = localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'];
-	if (list.find('a[href="#'+curr_rev+'"]').css('color') !== 'grey')
-		list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
 }
+
+init();
 
 })();

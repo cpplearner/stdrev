@@ -56,6 +56,7 @@ function all_hidden(el) { return is_present(el) && !$(el).is(':not(.stdrev-hidde
 // Called when user changes the selected revision. Inside this function, curr_rev is already set to
 // the value after the change.
 function on_rev_changed() {
+	handle_sections();
 	handle_dcl();
 	hide_rev_mark_in_dcl();
 	renumber_dcl();
@@ -64,8 +65,8 @@ function on_rev_changed() {
 	handle_nv();
 	handle_rev();
 	handle_member();
-	handle_headings();
 	handle_list_items();
+	handle_headings();
 	$('body').attr('data-stdrev', curr_rev);
 }
 
@@ -322,31 +323,36 @@ function handle_member() {
 		hide_if(this, all_hidden($(this).find('.t-dcl')));
 	});
 }
-// Hide or show headings.
-// If the heading contains a revision marker, that revision marker controls the visibility of it
-// and its corresponding contents; otherwise, a heuristic is made: if the contents contain a dsc
-// list, and its revision-related contents are hidden, then the heading and all contents are hidden
-// as well.
-// The heuristic requires that handle_dsc() and handle_rev() have been called.
-function handle_headings() {
+// Hide or show a whole section if the heading contains a revision marker.
+// The revision marker in the heading controls the visibility of the section.
+function handle_sections() {
 	var heading_selector = ['h5', 'h4', 'h3', 'h2'];
 	$.each(heading_selector, function(i, selector) {
 		$(selector).each(function() {
-			var section = $(this).nextUntil(heading_selector.slice(i).join(','));
 			var marker = $(this).find('> span > .t-mark-rev');
-			if (is_present(marker)) {
-				section.each(function() {
-					hide_if(this, all_hidden(this) || !should_be_shown(marker));
-				});
-				hide_if(this, !should_be_shown(marker));
-			} else if (section.is('.t-dsc-begin')) {
-				if (!section.is(':not(p, .t-rev-begin, .t-dsc-begin)')) {
+			if (! is_present(marker)) return;
+			var section = $(this).nextUntil(heading_selector.slice(i).join(','));
+			hide_if(section, !should_be_shown(marker));
+			hide_if(this, !should_be_shown(marker));
+		});
+	});
+}
+// Hide or shown a heading, based on the contents.
+// If the contents contain a dsc list, and its revision-related contents are hidden, the heading
+// and all contents are also hidden.
+// Requires that handle_dsc() and handle_rev() have been called.
+function handle_headings() {
+	var heading_selector = ['h5', 'h4', 'h3', 'h2'];
+	$.each(heading_selector, function(i, selector) {
+		$(selector).filter(':not(:has(> span > .t-mark-rev))').each(function() {
+			var section = $(this).nextUntil(heading_selector.slice(i).join(','));
+			if (section.is('.t-dsc-begin')) {
+				if (! section.is(':not(p, .t-rev-begin, .t-dsc-begin)')) {
 					var content = section.find('.t-dsc, .t-rev, .t-rev-inl');
-					var hidden = all_hidden(content);
 					section.each(function() {
-						hide_if(this, all_hidden(this) || hidden);
+						hide_if(this, all_hidden(this) || all_hidden(content));
 					});
-					hide_if(this, hidden);
+					hide_if(this, all_hidden(content));
 				}
 			}
 		});

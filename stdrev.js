@@ -312,9 +312,27 @@ function handle_nv() {
 // Hide or show the elements produced by the {{rev ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:rev/doc .
 // Borders are handled by class stdrev-rev-hide.
+// If hiding an element produced by {{rev inl}} results in adjacent punctuations (", ," or ", ."),
+// the preceding comma is hidden.
 function handle_rev() {
 	$('.t-rev, .t-rev-inl').each(function() {
 		hide_if(this, !should_be_shown(this));
+	});
+	$('.t-rev-inl').each(function() {
+		var prev = this.previousSibling;
+		var next = this.nextSibling;
+		if (prev && prev.nodeName === '#text' && next && next.nodeName == '#text') {
+			var prevtext = prev.nodeValue;
+			var rlastcomma = /, *$/;
+			var lastcomma = rlastcomma.exec(prevtext);
+			if (lastcomma && /^[,.]/.exec(next.nodeValue)) {
+				prev.nodeValue = prevtext.replace(rlastcomma, '');
+				var node = $('<span class="stdrev-comma">');
+				node.text(lastcomma[0]);
+				$(this).before(node);
+			}
+		}
+		hide_if($(this).prev('.stdrev-comma'), !should_be_shown(this));
 	});
 }
 // Hide or show in-line member description block produced by {{member}}.

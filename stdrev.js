@@ -1,6 +1,6 @@
 (function() {
 'use strict';
-var styles = document.createElement('style');
+var styles = Object.assign(document.createElement('style'), { className: 'stdrev-styles' });
 var not_diff_mode = '[data-stdrev]:not([data-stdrev="DIFF"]) ';
 styles.textContent = not_diff_mode+'.stdrev-hidden { display: none !important; }';
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: none !important; padding: 0 !important; }';

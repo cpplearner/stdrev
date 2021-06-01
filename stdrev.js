@@ -7,6 +7,8 @@ styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: no
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }';
+styles.textContent += not_diff_mode+'.t-dcl-constexpr { display: initial; }';
+styles.textContent += '.t-dcl-constexpr { display: none; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-inapplicable-rev-option { color: grey; font-style: italic; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-selected-rev-option { font-weight: bold; }';
 $('head').append(styles);
@@ -427,6 +429,27 @@ function init() {
 		if (! list.find('a[href="#'+curr_rev+'"]').is('.stdrev-inapplicable-rev-option'))
 			list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
 	}
+
+	// Given two declarations (produced by {{dcl ...}}) that differ only in the presence of
+	// 'constexpr', hide the latter and change the 'until c++XX' note in the former to
+	// 'constexpr since c++XX'.
+	$('.t-dcl').each(function() {
+		var next = $(this).next('.t-dcl');
+		if (is_present(next)) {
+			var prevtext = $(this).children().first().text();
+			var nexttext = next.children().first().text().replace(/\bconstexpr\b/, '');
+			if (prevtext.replace(/\s+/g, ' ') === nexttext.replace(/\s+/g, ' ')) {
+				var prevmark = $(this).find('> td > .t-mark-rev[class*=" t-until-"]');
+				prevmark.text(prevmark.text().replace('until', 'constexpr since'));
+				var nextmark = next.find('> td > .t-mark-rev[class*=" t-until-"]');
+				if (is_present(nextmark)) {
+					prevmark.after(nextmark.clone().attr('class', 't-mark-rev'));
+					prevmark.after($('<br>'));
+				}
+				next.addClass('t-dcl-constexpr');
+			}
+		}
+	});
 }
 
 init();

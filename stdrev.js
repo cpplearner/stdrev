@@ -7,8 +7,7 @@ styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: no
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }';
-styles.textContent += not_diff_mode+'.t-dcl-constexpr { display: initial; }';
-styles.textContent += '.t-dcl-constexpr { display: none; }';
+styles.textContent += '.stdrev-hide-constexpr .t-dcl-constexpr { display: none; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-inapplicable-rev-option { color: grey; font-style: italic; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-selected-rev-option { font-weight: bold; }';
 $('head').append(styles);
@@ -69,6 +68,7 @@ function on_rev_changed() {
 	handle_headings();
 	handle_list_items();
 	$('body').attr('data-stdrev', curr_rev);
+	$('body').toggleClass('stdrev-hide-constexpr', curr_rev === 'DIFF');
 }
 
 // Hide or show the elements produced by the {{dcl ...}} template family. See documentation at
@@ -423,13 +423,6 @@ function init() {
 			list.find('a[href="#'+curr_rev+'"]').addClass('stdrev-inapplicable-rev-option');
 	});
 
-	// select the previously selected revision
-	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
-		curr_rev = localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'];
-		if (! list.find('a[href="#'+curr_rev+'"]').is('.stdrev-inapplicable-rev-option'))
-			list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
-	}
-
 	// Given two declarations (produced by {{dcl ...}}) that differ only in the presence of
 	// 'constexpr', hide the latter and change the 'until c++XX' note in the former to
 	// 'constexpr since c++XX'.
@@ -450,6 +443,14 @@ function init() {
 			}
 		}
 	});
+
+	// select the previously selected revision
+	if (mw.config.get('wgAction') === 'view' && mw.config.get('wgNamespaceNumber') === 0) {
+		curr_rev = localStorage[is_cxx ? 'stdrev.cxx' : 'stdrev.c'];
+		if (! list.find('a[href="#'+curr_rev+'"]').is('.stdrev-inapplicable-rev-option'))
+			list.find('a[href="#'+curr_rev+'"]').triggerHandler('click');
+	}
+
 }
 
 init();

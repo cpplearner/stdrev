@@ -7,6 +7,7 @@ styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: no
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }';
+styles.textContent += not_diff_mode+'.t-sdsc > td:nth-child(3) > .t-mark-rev { display: none; }';
 styles.textContent += '.stdrev-hide-constexpr .t-dcl-constexpr { display: none; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-inapplicable-rev-option { color: grey; font-style: italic; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-selected-rev-option { font-weight: bold; }';
@@ -58,6 +59,7 @@ function all_hidden(el) { return is_present(el) && !$(el).is(':not(.stdrev-hidde
 // the value after the change.
 function on_rev_changed() {
 	handle_dcl();
+	handle_sdsc();
 	hide_rev_mark_in_dcl();
 	renumber_dcl();
 	handle_par();
@@ -113,6 +115,27 @@ function handle_dcl() {
 	$('.t-dcl-begin .t-dsc-header').each(function() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
 		hide_if(this, all_hidden(this) || !should_be_shown(marker));
+	});
+}
+// Hide or show the elements produced by the {{sdsc ...}} template family. See documentation at
+// https://en.cppreference.com/w/Template:sdsc/doc .
+// An element is hidden if its notes contain a revision marker that should be hidden.
+// To account for abuse of @m@, a list item is hidden only if it appears immediately after
+// the sdsc element. No renumbering is performed.
+function handle_sdsc() {
+	$('.t-sdsc-begin').each(function() {
+		var number_is_shown = [];
+		$(this).find('.t-sdsc').each(function() {
+			var notes = $(this).find('> td:nth-child(3) > *');
+			hide_if(this, !should_be_shown(notes));
+			hide_if($(this).prev(':has(.t-sdsc-sep)'), !should_be_shown(notes));
+			var num = $(this).find('> td:nth-child(2)').text().replace(/^\s*\((.*)\)\s*$/, '$1');
+			if (! number_is_shown[num]) number_is_shown[num] = should_be_shown(notes);
+		});
+		$(this).nextUntil(':not(.t-li1)').each(function() {
+			var num = +$(this).children('.t-li').text().replace(/\)$/, '');
+			hide_if(this, num in number_is_shown && !number_is_shown[num]);
+		});
 	});
 }
 // Hide revision markers in each dcl. Currently, a marker is hidden only if the associated
@@ -224,7 +247,7 @@ function handle_par() {
 				var has_matched_dcl = dcls.is(function() {
 					if (all_hidden(this)) return false;
 					var dcl = $(this).find('> td:first-child');
-					if (is_present(spar)) {
+					if (parname.is(':has(.t-spar, code)')) {
 						return dcl.children('.t-spar, code').is(function() {
 							return $(this).text() === parname.children('.t-spar, code').text();
 						});

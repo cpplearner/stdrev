@@ -7,7 +7,6 @@ styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: no
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl > span > .t-mark-rev { display: none; }';
-styles.textContent += not_diff_mode+'.t-sdsc > td:nth-child(3) > .t-mark-rev { display: none; }';
 styles.textContent += '.stdrev-hide-constexpr .t-dcl-constexpr { display: none; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-inapplicable-rev-option { color: grey; font-style: italic; }';
 styles.textContent += 'div.vectorMenu li a.stdrev-selected-rev-option { font-weight: bold; }';
@@ -15,7 +14,7 @@ $('head').append(styles);
 
 var is_cxx = mw.config.get('wgTitle').indexOf('c/') !== 0;
 var rev = is_cxx ?
-	[ 'C++98', 'C++03', 'C++11', 'C++14', 'C++17', 'C++20', 'C++23' ] :
+	[ 'C++98', 'C++11', 'C++14', 'C++17', 'C++20', 'C++23' ] :
 	[ 'C89', 'C99', 'C11', 'C23' ];
 
 var curr_rev = 'DIFF';
@@ -126,11 +125,15 @@ function handle_sdsc() {
 	$('.t-sdsc-begin').each(function() {
 		var number_is_shown = [];
 		$(this).find('.t-sdsc').each(function() {
-			var notes = $(this).find('> td:nth-child(3) > *');
-			hide_if(this, !should_be_shown(notes));
-			hide_if($(this).prev(':has(.t-sdsc-sep)'), !should_be_shown(notes));
+			var notes = $(this).find('> td:nth-child(3)').children();
 			var num = $(this).find('> td:nth-child(2)').text().replace(/^\s*\((.*)\)\s*$/, '$1');
-			if (! number_is_shown[num]) number_is_shown[num] = should_be_shown(notes);
+			if (notes.first().is('br')) {
+				number_is_shown[num] = true;
+			} else {
+				hide_if(this, !should_be_shown(notes));
+				hide_if($(this).prev(':has(.t-sdsc-sep)'), !should_be_shown(notes));
+				if (! number_is_shown[num]) number_is_shown[num] = should_be_shown(notes);
+			}
 		});
 		$(this).nextUntil(':not(.t-li1)').each(function() {
 			var num = +$(this).children('.t-li').text().replace(/\)$/, '');
@@ -231,35 +234,31 @@ function renumber_dcl() {
 // Requires that handle_dcl() has been called.
 function handle_par() {
 	$('.t-par-begin').each(function() {
-		var dcls = $(this).prevAll('.t-dcl-begin, .t-sdsc-begin').first().find('.t-dcl, .t-sdsc');
+		var prevdcl = $(this).prevAll('.t-dcl-begin, .t-sdsc-begin').first();
+		var dcls = prevdcl.prevUntil('h5, h4, h3, h2').addBack().find('.t-dcl, .t-sdsc');
 		$(this).find('.t-par').each(function() {
 			var marker = $(this).find('> td > .t-mark-rev');
 			var parname = $(this).find('> td:first-child');
-			if (is_present(marker) && marker.length === 1) {
-				hide_if(this, !should_be_shown(marker));
-				dcls.find('> td:first-child').children('.t-spar, code').each(function() {
-					if ($(this).text() === parname.children('.t-spar, code').text()) {
-						hide_if(this, !should_be_shown(marker));
-						hide_if($(this).next('.t-mark'), !should_be_shown(marker));
-					}
-				});
-			} else {
-				var has_matched_dcl = dcls.is(function() {
-					if (all_hidden(this)) return false;
-					var dcl = $(this).find('> td:first-child');
-					if (parname.is(':has(.t-spar, code)')) {
-						return dcl.children('.t-spar, code').is(function() {
-							return $(this).text() === parname.children('.t-spar, code').text();
-						});
-					} else {
-						return is_present($.grep(parname.text().split(','), function(name) {
-							var rname = new RegExp('\\b'+name.replace(/[^\w-]/g, '')+'\\b');
-							return dcl.text().search(rname) !== -1;
-						}));
-					}
-				});
-				hide_if(this, !has_matched_dcl);
-			}
+			var matched_dcls = dcls.filter(function() {
+				var dcl = $(this).find('> td:first-child');
+				if (parname.is(':has(.t-spar, code)')) {
+					return dcl.children('.t-spar, code').is(function() {
+						return $(this).text() === parname.children('.t-spar, code').text();
+					});
+				} else {
+					return $.grep(parname.text().split(','), function(name) {
+						var rname = new RegExp('\\b'+name.replace(/\W/g, '')+'\\b');
+						return dcl.text().search(rname) !== -1;
+					}).length !== 0;
+				}
+			});
+			hide_if(this, all_hidden(matched_dcls) || !should_be_shown(marker));
+			dcls.find('> td:first-child').children('.t-spar, code').each(function() {
+				if ($(this).text() === parname.children('.t-spar, code').text()) {
+					hide_if(this, !should_be_shown(marker));
+					hide_if($(this).next('.t-mark'), !should_be_shown(marker));
+				}
+			});
 		});
 	});
 }

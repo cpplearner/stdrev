@@ -14,7 +14,7 @@ $('head').append(styles);
 
 var is_cxx = mw.config.get('wgTitle').indexOf('c/') !== 0;
 var rev = is_cxx ?
-	[ 'C++98', 'C++11', 'C++14', 'C++17', 'C++20', 'C++23' ] :
+	[ 'C++98', 'C++11', 'C++14', 'C++17', 'C++20', 'C++23', 'C++26' ] :
 	[ 'C89', 'C99', 'C11', 'C23' ];
 
 var curr_rev = 'DIFF';

@@ -448,11 +448,16 @@ function init() {
 		} else {
 			var dcl_cont = $('.t-dcl-begin:not(h3 ~ *, .t-member *)');
 			var dcl = dcl_cont.find('.t-dcl-rev-notes, .t-dcl:not(.t-dcl-rev-notes *)');
+			var all_expos = !dcl.is(':not(:has(.t-mark-expos))');
 			if (is_present(dcl)) {
 				rev_is_applicable = dcl.is(function() {
-					if ($(this).is(':has(.t-mark-rev)'))
+					if (!all_expos && $(this).is(':has(.t-mark-expos)')) {
+						return false;
+					} else if ($(this).is(':has(.t-mark-rev)')) {
 						return should_be_shown(this);
-					return $(this).text().indexOf('exposition') === -1;
+					} else {
+						return true;
+					}
 				});
 			}
 		}

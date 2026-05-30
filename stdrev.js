@@ -3,6 +3,7 @@
 var styles = Object.assign(document.createElement('style'), { className: 'stdrev-styles' });
 var not_diff_mode = '[data-stdrev]:not([data-stdrev="DIFF"]) ';
 styles.textContent = not_diff_mode+'.stdrev-hidden { display: none !important; }';
+styles.textContent += not_diff_mode+'.stdrev-visible-dcl-num { display: table-cell !important; }';
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td { border: none !important; padding: 0 !important; }';
 styles.textContent += not_diff_mode+'.t-rev-begin > tbody > tr > td:nth-child(2) { display: none; }';
 styles.textContent += not_diff_mode+'.t-rev-inl { border: none; }';
@@ -82,6 +83,7 @@ function on_rev_changed() {
 // {{dcl h | ... }} might not be adjacent to their associated dcl items in DOM.
 // For convenience, each dcl-rev is marked as hidden if all its children dcl items are hidden,
 // and vice versa.
+// Note that {{dcl rev begin}} is no longer functional since the upgrade to MediaWiki 1.43.8.
 function handle_dcl() {
 	$('.t-dcl').each(function() {
 		hide_if(this, !should_be_shown(this));
@@ -115,6 +117,24 @@ function handle_dcl() {
 		var marker = $(this).find('> td > div > .t-mark-rev');
 		hide_if(this, all_hidden(this) || !should_be_shown(marker));
 	});
+	$('.t-dcl:has(td:nth-child(2)[rowspan]:not(.t-dcl-dummy-num))').each(function() {
+		var num_cell = $(this).find('td:nth-child(2)');
+		if (! num_cell.attr('data-orig-rowspan'))
+			num_cell.attr('data-orig-rowspan', num_cell.rowSpan);
+		var dcl_revs = $(this).nextUntil(':not(.t-dcl:has(.t-dcl-dummy-num))').addBack();
+		var visible_dcl_revs = dcl_revs.filter(function() {
+			return !all_hidden(this);
+		});
+		if (is_present(visible_dcl_revs)) {
+			var first_visible = visible_dcl_revs.first();
+			var visible_num_cell = first_visible.find('td:nth-child(2)');
+			dcl_revs.removeClass('stdrev-visible-dcl-num');
+			visible_num_cell.addClass('stdrev-visible-dcl-num');
+			visible_num_cell.attr('rowspan', visible_dcl_revs.length);
+			visible_num_cell.text(num_cell.text());
+		}
+	});
+
 }
 // Hide or show the elements produced by the {{sdsc ...}} template family. See documentation at
 // https://en.cppreference.com/w/Template:sdsc/doc .
@@ -154,6 +174,16 @@ function hide_rev_mark_in_dcl() {
 		var marker = $(this).find('> td > .t-mark-rev');
 		hide_if(marker.filter('[class*=" t-since-"]'), all_hidden($(this).prev()));
 		hide_if(marker.filter('[class*=" t-until-"]'), all_hidden($(this).next()));
+	});
+	$('.t-dcl:has(td:nth-child(2)[rowspan]:not(.t-dcl-dummy-num))').each(function() {
+		var dcl_revs = $(this).nextUntil(':not(.t-dcl:has(.t-dcl-dummy-num))').addBack();
+		dcl_revs.each(function() {
+			var marker = $(this).find('> td > .t-mark-rev');
+			var prev_dcls = dcl_revs.first().nextUntil(this).addBack();
+			var next_dcls = dcl_revs.last().prevUntil(this).addBack();
+			hide_if(marker.filter('[class*=" t-since-"]'), all_hidden(prev_dcls));
+			hide_if(marker.filter('[class*=" t-until-"]'), all_hidden(next_dcls));
+		});
 	});
 }
 // Ensure that visible dcl items in a dcl list are contiguously numbered, and rewrite mentions
@@ -214,11 +244,12 @@ function renumber_dcl() {
 			if ($(this).is('.t-v')) {
 				$(this).text('('+s.join(',')+')');
 			} else if ($(this).attr('data-orig-v') !== '') {
-				hide_if(this.parentElement, !is_present(numbers));
+				hide_if($(this).parent(), !is_present(numbers));
 				$(this).text(s.join(',')+')');
 			} else {
-				var prev_li = $(this).prevAll('.t-li:not([data-orig-v=""])').first();
-				hide_if(this.parentElement, all_hidden(prev_li));
+				var cont = $(this).parent();
+				var prev_li = $(cont).prevAll(':has(.t-li:not([data-orig-v=""]))').first();
+				hide_if(cont, all_hidden(prev_li));
 			}
 		});
 	});
